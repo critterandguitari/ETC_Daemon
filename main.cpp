@@ -27,10 +27,15 @@ void reload(OSCMessage &msg);
 void sendReady(OSCMessage &msg);
 void sendShutdown(OSCMessage &msg);
 void quitMother(OSCMessage &msg);
+void checkShutdown(OSCMessage &msg);
 /* end internal OSC messages received */
 
 /* helpers */
 void sendGetKnobs(void);
+
+// for shutdown
+int shutdownEnabled = 0;
+Timer shutdownTimer;
 
 int main(int argc, char* argv[]) {
       
@@ -46,9 +51,12 @@ int main(int argc, char* argv[]) {
     knobPollTimer.reset();
     pingTimer.reset();
     upTime.reset();
+    shutdownTimer.reset();
 
     udpSock.setDestination(4000, "localhost");
     OSCMessage msgIn;
+
+    char cmd[256];
 
     uint8_t blobby[5];
     blobby[0] = 0;
@@ -75,7 +83,19 @@ int main(int argc, char* argv[]) {
     quit = 0;
 
     // full udp -> serial -> serial -> udp
+    shutdownTimer.reset();
     for (;;){
+
+        // check if we are dealing with a shutdown
+        if (shutdownEnabled){
+            if (shutdownTimer.getElapsed() > 1000.f){
+                shutdownEnabled = 0;
+                printf("That's it! shutting down!\n");
+                sprintf(cmd, "/root/ETC_Sys/scripts/shutdown.sh &");
+                system(cmd);
+            }
+        }
+
         // receive udp, send to serial
         len = udpSock.readBuffer(udpPacketIn, 256, 0);
         if (len > 0){
@@ -86,7 +106,7 @@ int main(int argc, char* argv[]) {
             if(!msgIn.hasError()){
                 msgIn.send(dump);
                 slip.sendMessage(dump.buffer, dump.length, serial);
-
+                msgIn.dispatch("/key", checkShutdown, 0);
 /*                msgIn.dispatch("/ready", sendReady, 0);
                 msgIn.dispatch("/shutdown", sendShutdown, 0);
                 msgIn.dispatch("/led", setLED, 0);
@@ -101,11 +121,18 @@ int main(int argc, char* argv[]) {
 
         // receive serial, send udp
         if(slip.recvMessage(serial)) {
+            // send to listening UDP
             udpSock.writeBuffer(slip.decodedBuf, slip.decodedLength);
             
-            // check if we need to do something with this message
-            msgIn.empty();
+            // check if we need to do shutdown
             msgIn.fill(slip.decodedBuf, slip.decodedLength);
+            if(!msgIn.hasError()){
+                msgIn.dispatch("/key", checkShutdown, 0);
+            }
+            else {
+                printf("bad message\n");
+            }
+            
             msgIn.empty();
         }
 
@@ -138,6 +165,24 @@ int main(int argc, char* argv[]) {
     } // for;;
 }
 
+
+void checkShutdown(OSCMessage &msg){
+
+	if (msg.isInt(0)) {
+        // shutdown key (0) pressed, enable shutdown, start timer
+        if (msg.getInt(0) == 0){
+            if (msg.getInt(1) > 0) {
+    	        printf("got shutdown key, setting shutdown timer...\n");
+                shutdownEnabled = 1;
+                shutdownTimer.reset();
+            }
+            // released before timer ends, disable shutdown
+            else {
+                shutdownEnabled = 0;
+            }
+        }
+	}
+}
 
 void quitMother(OSCMessage &msg){
     quit = 1;
