@@ -50,6 +50,15 @@ int main(int argc, char* argv[]) {
     udpSock.setDestination(4000, "localhost");
     OSCMessage msgIn;
 
+    uint8_t blobby[5];
+    blobby[0] = 0;
+    blobby[1] = 1;
+    blobby[2] = 2;
+    blobby[3] = 3;
+    blobby[4] = 4;
+
+    OSCMessage blobTest("/blobby");
+    blobTest.add(blobby, 5);
 
     // send ready to wake up MCU
     // MCU is ignoring stuff over serial port until this message comes through
@@ -75,11 +84,14 @@ int main(int argc, char* argv[]) {
                 msgIn.fill(udpPacketIn[i]);
             }    
             if(!msgIn.hasError()){
-                msgIn.dispatch("/ready", sendReady, 0);
+                msgIn.send(dump);
+                slip.sendMessage(dump.buffer, dump.length, serial);
+
+/*                msgIn.dispatch("/ready", sendReady, 0);
                 msgIn.dispatch("/shutdown", sendShutdown, 0);
                 msgIn.dispatch("/led", setLED, 0);
                 msgIn.dispatch("/reload", reload, 0);
-                msgIn.dispatch("/quitmother", quitMother, 0);
+                msgIn.dispatch("/quitmother", quitMother, 0);*/
             }
             else {
                 printf("bad message\n");
@@ -106,14 +118,18 @@ int main(int argc, char* argv[]) {
             pingTimer.reset();
             rdyMsg.send(dump);
             slip.sendMessage(dump.buffer, dump.length, serial);
-        }
+   
+            //blobTest.send(dump);
+            //udpSock.writeBuffer(dump.buffer, dump.length);
+
+         }
 
         // poll for knobs
-        if (knobPollTimer.getElapsed() > 40.f){
+ /*       if (knobPollTimer.getElapsed() > 40.f){
             knobPollTimer.reset();
             sendGetKnobs();
         }
-        
+   */     
         // check exit flag
         if (quit) {
             printf("quitting\n");
