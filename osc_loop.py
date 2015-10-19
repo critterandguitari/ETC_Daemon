@@ -43,6 +43,6 @@ while True:
     if count == 10 :
         count = 0
         print "max time: " + str(maxt) + "\tmin time : " + str(mint)
-        mint = 100000
-        maxt = 0
+#        mint = 100000
+#        maxt = 0
 
