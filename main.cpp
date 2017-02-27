@@ -106,12 +106,7 @@ int main(int argc, char* argv[]) {
             if(!msgIn.hasError()){
                 msgIn.send(dump);
                 slip.sendMessage(dump.buffer, dump.length, serial);
-                msgIn.dispatch("/key", checkShutdown, 0);
-/*                msgIn.dispatch("/ready", sendReady, 0);
-                msgIn.dispatch("/shutdown", sendShutdown, 0);
-                msgIn.dispatch("/led", setLED, 0);
-                msgIn.dispatch("/reload", reload, 0);
-                msgIn.dispatch("/quitmother", quitMother, 0);*/
+           //     msgIn.dispatch("/key", checkShutdown, 0);
             }
             else {
                 printf("bad message\n");
